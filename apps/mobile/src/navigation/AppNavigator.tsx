@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+import HomeScreen from '../screens/HomeScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 
 export type RootTabParamList = {
@@ -12,10 +13,6 @@ export type RootTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
-
-function HomeScreen() {
-  return <PlaceholderScreen title="Home" />;
-}
 
 function DiscoverScreen() {
   return <PlaceholderScreen title="Discover" />;
