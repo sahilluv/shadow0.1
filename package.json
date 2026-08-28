@@ -1,0 +1,13 @@
+{
+  "name": "shadow",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces",
+    "build": "npm run build --workspaces"
+  }
+}
