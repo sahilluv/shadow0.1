@@ -5,7 +5,7 @@ import CreateScreen from '../screens/CreateScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import HomeScreen from '../screens/HomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -16,10 +16,6 @@ export type RootTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
-
-function ProfileScreen() {
-  return <PlaceholderScreen title="Profile" />;
-}
 
 export default function AppNavigator() {
   return (
