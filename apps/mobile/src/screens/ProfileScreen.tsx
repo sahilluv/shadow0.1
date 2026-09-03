@@ -1,5 +1,7 @@
+import { useSession } from '../context/SessionContext';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -49,6 +51,20 @@ const profilePosts: ProfilePost[] = [
 
 export default function ProfileScreen() {
   const [activeAction, setActiveAction] = useState<'edit' | 'share'>('edit');
+  const { identity, logout } = useSession();
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          void logout();
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -74,14 +90,40 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.identityBlock}>
-              <Text style={styles.name}>Arjun Mehta</Text>
+              <Text style={styles.name}>
+                {identity?.name || 'Arjun Mehta'}
+              </Text>
               <Text style={styles.school}>Goa University</Text>
               <Text style={styles.meta}>Data Science • 3rd Year</Text>
+              {identity?.email && (
+                <Text style={styles.email}>{identity.email}</Text>
+              )}
             </View>
           </View>
 
           <Text style={styles.bio}>Building ideas, learning every day.</Text>
           <Text style={styles.location}>📍 Panaji, Goa</Text>
+
+          {identity && (
+            <View style={styles.shadowIdentity}>
+              <Text style={styles.identityTitle}>Shadow Identity</Text>
+              {identity.shadow && (
+                <Text style={styles.identityText}>
+                  Shadow ID: {identity.shadow.id}
+                </Text>
+              )}
+              {identity.shadowRank && (
+                <Text style={styles.identityText}>
+                  Rank: {identity.shadowRank.rankType}
+                </Text>
+              )}
+              {identity.verification && (
+                <Text style={styles.identityText}>
+                  Verification: {identity.verification.status}
+                </Text>
+              )}
+            </View>
+          )}
 
           <View style={styles.actionRow}>
             <Pressable
@@ -124,6 +166,17 @@ export default function ProfileScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {identity && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Logout"
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <Text style={styles.logoutText}>Logout</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.statsCard}>
@@ -254,6 +307,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 3,
   },
+  email: {
+    color: '#6D7B8D',
+    fontSize: 12,
+    marginTop: 3,
+  },
   bio: {
     color: '#334155',
     fontSize: 15,
@@ -264,6 +322,23 @@ const styles = StyleSheet.create({
     color: '#5D6877',
     fontSize: 13,
     marginTop: 8,
+  },
+  shadowIdentity: {
+    borderTopColor: '#EEF1F3',
+    borderTopWidth: 1,
+    marginTop: 16,
+    paddingTop: 14,
+  },
+  identityTitle: {
+    color: '#1B2A41',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  identityText: {
+    color: '#68778B',
+    fontSize: 12,
+    marginTop: 3,
   },
   actionRow: {
     flexDirection: 'row',
@@ -297,6 +372,20 @@ const styles = StyleSheet.create({
   },
   actionTextActive: {
     color: '#FFFFFF',
+  },
+  logoutButton: {
+    alignItems: 'center',
+    borderColor: '#E26D5A',
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: 10,
+    minHeight: 40,
+  },
+  logoutText: {
+    color: '#C54F40',
+    fontSize: 13,
+    fontWeight: '700',
   },
   statsCard: {
     alignItems: 'center',

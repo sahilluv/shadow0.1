@@ -1,5 +1,11 @@
-import AppNavigator from './src/navigation/AppNavigator';
+import React from 'react';
+import { SessionProvider } from './src/context/SessionContext';
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <SessionProvider>
+      <RootNavigator />
+    </SessionProvider>
+  );
 }
