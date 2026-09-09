@@ -1,74 +1,57 @@
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { apiClient } from '../api/client';
+import { Post } from '../types/api';
 
-type FeedPost = {
-  id: string;
-  initials: string;
-  avatarColor: string;
-  name: string;
-  context: string;
-  time: string;
-  content: string;
-  likes: number;
-  comments: number;
-};
+const avatarColors = ['#F5B7A4', '#A8C6B5', '#AFC4E3', '#D8B6D8'];
 
-const posts: FeedPost[] = [
-  {
-    id: '1',
-    initials: 'JM',
-    avatarColor: '#F5B7A4',
-    name: 'Jordan Miller',
-    context: 'Computer Science  •  Northbridge University',
-    time: '18 min ago',
-    content:
-      'The quiet floor is finally open again. If anyone wants to pair on algorithms later, I will be at the window seats.',
-    likes: 24,
-    comments: 8,
-  },
-  {
-    id: '2',
-    initials: 'AK',
-    avatarColor: '#A8C6B5',
-    name: 'Aisha Khan',
-    context: 'Design Society  •  Westlake College',
-    time: '42 min ago',
-    content:
-      'Small win: our studio project made it through critique. Still processing the feedback, but feeling very grateful for this team.',
-    likes: 41,
-    comments: 12,
-  },
-  {
-    id: '3',
-    initials: 'LC',
-    avatarColor: '#AFC4E3',
-    name: 'Leo Chen',
-    context: 'Environmental Science  •  Northbridge University',
-    time: '1 hr ago',
-    content:
-      'Free coffee at the sustainability fair until 3pm. The upcycled tote workshop is worth stopping by between classes.',
-    likes: 17,
-    comments: 5,
-  },
-  {
-    id: '4',
-    initials: 'SR',
-    avatarColor: '#D8B6D8',
-    name: 'Sofia Reyes',
-    context: 'Film Club  •  Eastfield University',
-    time: '2 hrs ago',
-    content:
-      'Looking for one more person to help with sound on our short film this weekend. No experience needed, just a good ear.',
-    likes: 29,
-    comments: 14,
-  },
-];
+function getInitials(name: string | null) {
+  if (!name) {
+    return 'SH';
+  }
+
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function formatPostTime(createdAt: string) {
+  const created = new Date(createdAt);
+  if (Number.isNaN(created.getTime())) {
+    return '';
+  }
+
+  const elapsedMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - created.getTime()) / 60000),
+  );
+  if (elapsedMinutes < 1) {
+    return 'Just now';
+  }
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes} min ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return `${elapsedHours} hr${elapsedHours === 1 ? '' : 's'} ago`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays} day${elapsedDays === 1 ? '' : 's'} ago`;
+}
 
 function Avatar({ initials, color }: { initials: string; color: string }) {
   return (
@@ -78,16 +61,20 @@ function Avatar({ initials, color }: { initials: string; color: string }) {
   );
 }
 
-function FeedPostCard({ post }: { post: FeedPost }) {
+function FeedPostCard({ post, index }: { post: Post; index: number }) {
+  const name = post.author.name || 'Shadow user';
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <Avatar initials={post.initials} color={post.avatarColor} />
+        <Avatar
+          initials={getInitials(post.author.name)}
+          color={avatarColors[index % avatarColors.length]}
+        />
         <View style={styles.postIdentity}>
-          <Text style={styles.postName}>{post.name}</Text>
-          <Text style={styles.postContext}>{post.context}</Text>
+          <Text style={styles.postName}>{name}</Text>
+          <Text style={styles.postContext}>Shadow community</Text>
         </View>
-        <Text style={styles.postTime}>{post.time}</Text>
+        <Text style={styles.postTime}>{formatPostTime(post.createdAt)}</Text>
       </View>
 
       <Text style={styles.postContent}>{post.content}</Text>
@@ -96,23 +83,23 @@ function FeedPostCard({ post }: { post: FeedPost }) {
         <Pressable
           style={styles.actionButton}
           accessibilityRole="button"
-          accessibilityLabel={`Like ${post.name}'s post`}
+          accessibilityLabel={`Like ${name}'s post`}
         >
           <Text style={styles.actionIcon}>♡</Text>
-          <Text style={styles.actionText}>{post.likes}</Text>
+          <Text style={styles.actionText}>0</Text>
         </Pressable>
         <Pressable
           style={styles.actionButton}
           accessibilityRole="button"
-          accessibilityLabel={`Comment on ${post.name}'s post`}
+          accessibilityLabel={`Comment on ${name}'s post`}
         >
           <Text style={styles.actionIcon}>○</Text>
-          <Text style={styles.actionText}>{post.comments}</Text>
+          <Text style={styles.actionText}>0</Text>
         </Pressable>
         <Pressable
           style={styles.shareButton}
           accessibilityRole="button"
-          accessibilityLabel={`Share ${post.name}'s post`}
+          accessibilityLabel={`Share ${name}'s post`}
         >
           <Text style={styles.shareText}>Share</Text>
         </Pressable>
@@ -122,10 +109,51 @@ function FeedPostCard({ post }: { post: FeedPost }) {
 }
 
 export default function HomeScreen() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFeed = async (refresh = false) => {
+    if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      const response = await apiClient.getFeed({ limit: 20 });
+      setPosts(response.items);
+      setError(null);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Unable to load your feed.',
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadFeed();
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => {
+              void loadFeed(true);
+            }}
+            tintColor="#1B2A41"
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -160,9 +188,32 @@ export default function HomeScreen() {
           <Text style={styles.sectionMeta}>Fresh from campus</Text>
         </View>
 
-        {posts.map((post) => (
-          <FeedPostCard key={post.id} post={post} />
-        ))}
+        {isLoading ? (
+          <ActivityIndicator
+            accessibilityLabel="Loading feed"
+            color="#1B2A41"
+            size="small"
+          />
+        ) : error ? (
+          <View style={styles.feedMessage}>
+            <Text style={styles.feedMessageText}>{error}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading feed"
+              onPress={() => {
+                void loadFeed();
+              }}
+            >
+              <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : posts.length === 0 ? (
+          <Text style={styles.feedMessageText}>No posts yet.</Text>
+        ) : (
+          posts.map((post, index) => (
+            <FeedPostCard key={post.id} post={post} index={index} />
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -262,6 +313,21 @@ const styles = StyleSheet.create({
   sectionMeta: {
     color: '#8792A3',
     fontSize: 12,
+  },
+  feedMessage: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  feedMessageText: {
+    color: '#728096',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  retryText: {
+    color: '#E26D5A',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
   },
   postCard: {
     backgroundColor: '#FFFFFF',

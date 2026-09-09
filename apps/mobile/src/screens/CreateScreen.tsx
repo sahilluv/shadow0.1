@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { apiClient } from '../api/client';
 
 const postTypes = ['Campus life', 'Question', 'Event', 'Opportunity'];
 const visibilityOptions = ['Campus', 'Community', 'Only me'];
@@ -31,6 +34,32 @@ export default function CreateScreen() {
   const [postText, setPostText] = useState('');
   const [selectedType, setSelectedType] = useState(postTypes[0]);
   const [selectedVisibility, setSelectedVisibility] = useState(visibilityOptions[0]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePost = async () => {
+    const content = postText.trim();
+    if (!content) {
+      Alert.alert('Post cannot be empty', 'Write something before posting.');
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await apiClient.createPost({ content });
+      setPostText('');
+    } catch (error) {
+      Alert.alert(
+        'Post failed',
+        error instanceof Error ? error.message : 'Unable to create post.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,8 +77,21 @@ export default function CreateScreen() {
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Text style={styles.headerTitle}>Create post</Text>
-            <Pressable style={styles.postButton} accessibilityRole="button" accessibilityLabel="Post">
-              <Text style={styles.postButtonText}>Post</Text>
+            <Pressable
+              style={[styles.postButton, isSubmitting && styles.disabledButton]}
+              accessibilityRole="button"
+              accessibilityLabel="Post"
+              accessibilityState={{ disabled: isSubmitting }}
+              disabled={isSubmitting}
+              onPress={() => {
+                void handlePost();
+              }}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.postButtonText}>Post</Text>
+              )}
             </Pressable>
           </View>
 
@@ -195,6 +237,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   authorRow: {
     alignItems: 'center',

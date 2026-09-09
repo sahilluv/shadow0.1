@@ -68,3 +68,25 @@ export interface RegisterRequest {
   password: string;
   name?: string;
 }
+
+export interface PostAuthor {
+  id: string;
+  name: string | null;
+}
+
+export interface Post {
+  id: string;
+  content: string;
+  author: PostAuthor;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePostRequest {
+  content: string;
+}
+
+export interface FeedResponse {
+  items: Post[];
+  nextCursor: string | null;
+}

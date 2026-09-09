@@ -1,7 +1,10 @@
 import {
   AuthResponse,
+  CreatePostRequest,
+  FeedResponse,
   IdentityResponse,
   LoginRequest,
+  Post,
   RegisterRequest,
 } from '../types/api';
 
@@ -65,6 +68,38 @@ export class ApiClient {
 
   async getMe(): Promise<IdentityResponse> {
     return this.request<IdentityResponse>('/auth/me', {
+      method: 'GET',
+    });
+  }
+
+  async createPost(data: CreatePostRequest): Promise<Post> {
+    return this.request<Post>('/posts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getFeed(params: {
+    limit?: number;
+    cursor?: string;
+  } = {}): Promise<FeedResponse> {
+    const query = new URLSearchParams();
+    if (params.limit !== undefined) {
+      query.set('limit', String(params.limit));
+    }
+    if (params.cursor) {
+      query.set('cursor', params.cursor);
+    }
+
+    const queryString = query.toString();
+    return this.request<FeedResponse>(
+      `/posts/feed${queryString ? `?${queryString}` : ''}`,
+      { method: 'GET' },
+    );
+  }
+
+  async getPost(id: string): Promise<Post> {
+    return this.request<Post>(`/posts/${encodeURIComponent(id)}`, {
       method: 'GET',
     });
   }

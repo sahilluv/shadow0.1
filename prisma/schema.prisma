@@ -26,6 +26,7 @@ model User {
   shadow         Shadow?
   shadowRank     ShadowRank?
   verification   ShadowVerification?
+  posts          Post[]
 }
 
 model Profile {
@@ -62,6 +63,19 @@ model ShadowVerification {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, id])
+  @@index([authorId, createdAt])
 }
 
 model EncounterPreference {
