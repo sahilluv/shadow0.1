@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,7 +9,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { apiClient } from '../api/client';
+import type { RootTabParamList } from '../navigation/RootNavigator';
 import { Post } from '../types/api';
 
 const avatarColors = ['#F5B7A4', '#A8C6B5', '#AFC4E3', '#D8B6D8'];
@@ -109,14 +116,24 @@ function FeedPostCard({ post, index }: { post: Post; index: number }) {
 }
 
 export default function HomeScreen() {
+  const navigation = useNavigation<
+    BottomTabNavigationProp<RootTabParamList>
+  >();
+  const route = useRoute<
+    import('@react-navigation/native').RouteProp<RootTabParamList, 'Home'>
+  >();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isLoadingMoreRef = useRef(false);
 
-  const loadFeed = async (refresh = false) => {
+  const loadFeed = useCallback(async (refresh = false) => {
     if (refresh) {
       setIsRefreshing(true);
+      setNextCursor(null);
     } else {
       setIsLoading(true);
     }
@@ -124,6 +141,7 @@ export default function HomeScreen() {
     try {
       const response = await apiClient.getFeed({ limit: 20 });
       setPosts(response.items);
+      setNextCursor(response.nextCursor);
       setError(null);
     } catch (loadError) {
       setError(
@@ -135,16 +153,59 @@ export default function HomeScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
+  }, []);
+
+  const loadMorePosts = async () => {
+    if (!nextCursor || isLoadingMoreRef.current) {
+      return;
+    }
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    try {
+      const response = await apiClient.getFeed({
+        limit: 20,
+        cursor: nextCursor,
+      });
+      setPosts((currentPosts) => [...currentPosts, ...response.items]);
+      setNextCursor(response.nextCursor);
+    } catch (loadError) {
+      console.error('Unable to load more feed posts.', loadError);
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
     void loadFeed();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.postCreated !== true) {
+        return;
+      }
+
+      navigation.setParams({ postCreated: undefined });
+      void loadFeed(true);
+    }, [loadFeed, navigation, route.params?.postCreated]),
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
+        onScroll={({ nativeEvent }) => {
+          const distanceFromBottom =
+            nativeEvent.contentSize.height -
+            (nativeEvent.layoutMeasurement.height + nativeEvent.contentOffset.y);
+
+          if (distanceFromBottom <= 300) {
+            void loadMorePosts();
+          }
+        }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -177,6 +238,9 @@ export default function HomeScreen() {
             style={styles.composerPrompt}
             accessibilityRole="button"
             accessibilityLabel="Create a post"
+            onPress={() => {
+              navigation.navigate('Create');
+            }}
           >
             <Text style={styles.composerText}>What's happening?</Text>
           </Pressable>
@@ -213,6 +277,14 @@ export default function HomeScreen() {
           posts.map((post, index) => (
             <FeedPostCard key={post.id} post={post} index={index} />
           ))
+        )}
+
+        {isLoadingMore && (
+          <ActivityIndicator
+            accessibilityLabel="Loading more posts"
+            color="#1B2A41"
+            size="small"
+          />
         )}
       </ScrollView>
     </SafeAreaView>

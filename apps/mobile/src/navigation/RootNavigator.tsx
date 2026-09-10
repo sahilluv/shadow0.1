@@ -18,7 +18,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 export type RootTabParamList = {
-  Home: undefined;
+  Home: { postCreated?: boolean } | undefined;
   Discover: undefined;
   Create: undefined;
   Notifications: undefined;

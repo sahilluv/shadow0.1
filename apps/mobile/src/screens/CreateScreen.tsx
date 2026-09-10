@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
   ActivityIndicator,
   Alert,
@@ -13,15 +15,30 @@ import {
   View,
 } from 'react-native';
 import { apiClient } from '../api/client';
+import { useSession } from '../context/SessionContext';
+import type { RootTabParamList } from '../navigation/RootNavigator';
 
 const postTypes = ['Campus life', 'Question', 'Event', 'Opportunity'];
 const visibilityOptions = ['Campus', 'Community', 'Only me'];
 const maxCharacters = 280;
 
-function Avatar() {
+function getInitials(name: string | null) {
+  if (!name) {
+    return 'SU';
+  }
+
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function Avatar({ initials }: { initials: string }) {
   return (
     <View style={styles.avatar}>
-      <Text style={styles.avatarText}>MP</Text>
+      <Text style={styles.avatarText}>{initials}</Text>
     </View>
   );
 }
@@ -31,6 +48,10 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 export default function CreateScreen() {
+  const navigation = useNavigation<
+    BottomTabNavigationProp<RootTabParamList>
+  >();
+  const { identity } = useSession();
   const [postText, setPostText] = useState('');
   const [selectedType, setSelectedType] = useState(postTypes[0]);
   const [selectedVisibility, setSelectedVisibility] = useState(visibilityOptions[0]);
@@ -51,6 +72,7 @@ export default function CreateScreen() {
       setIsSubmitting(true);
       await apiClient.createPost({ content });
       setPostText('');
+      navigation.navigate('Home', { postCreated: true });
     } catch (error) {
       Alert.alert(
         'Post failed',
@@ -60,6 +82,11 @@ export default function CreateScreen() {
       setIsSubmitting(false);
     }
   };
+
+  const authorName = identity?.name?.trim() || 'Shadow user';
+  const authorInitials = identity?.name?.trim()
+    ? getInitials(identity.name.trim())
+    : 'SU';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -96,10 +123,10 @@ export default function CreateScreen() {
           </View>
 
           <View style={styles.authorRow}>
-            <Avatar />
+            <Avatar initials={authorInitials} />
             <View style={styles.authorDetails}>
-              <Text style={styles.authorName}>Maya Patel</Text>
-              <Text style={styles.authorContext}>Computer Science  •  Northbridge University</Text>
+              <Text style={styles.authorName}>{authorName}</Text>
+              <Text style={styles.authorContext}>Shadow community</Text>
             </View>
           </View>
 
