@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as TokenStorage from '../storage/tokenStorage';
 import { apiClient } from '../api/client';
 import { IdentityResponse } from '../types/api';
 
@@ -39,7 +39,7 @@ export function SessionProvider({
   const bootstrap = async () => {
     try {
       setState('BOOTSTRAPPING');
-      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const storedToken = await TokenStorage.getItem(TOKEN_KEY);
 
       if (!storedToken) {
         setState('UNAUTHENTICATED');
@@ -57,7 +57,7 @@ export function SessionProvider({
       setState('AUTHENTICATED');
     } catch (err) {
       // Token is invalid or expired, clear session
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await TokenStorage.deleteItem(TOKEN_KEY);
       apiClient.setToken(null);
       setAccessToken(null);
       setIdentity(null);
@@ -80,7 +80,7 @@ export function SessionProvider({
 
       const token = response.access_token;
       apiClient.setToken(token);
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await TokenStorage.setItem(TOKEN_KEY, token);
 
       // After registering, fetch full identity
       const identityData = await apiClient.getMe();
@@ -105,7 +105,7 @@ export function SessionProvider({
 
       const token = response.access_token;
       apiClient.setToken(token);
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await TokenStorage.setItem(TOKEN_KEY, token);
 
       // After logging in, fetch full identity
       const identityData = await apiClient.getMe();
@@ -122,7 +122,7 @@ export function SessionProvider({
   const logout = async () => {
     try {
       setError(null);
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await TokenStorage.deleteItem(TOKEN_KEY);
       apiClient.setToken(null);
       setAccessToken(null);
       setIdentity(null);
